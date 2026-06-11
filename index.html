@@ -224,7 +224,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
 </div>
 </div>
 <script>
-const JSONBIN_KEY = "$2a$10$1dhuIR50aFz5pB.N3d14ke5G807Ii8BnBcQ/lCWo.iUKDzk4rNewq";
+const JSONBIN_KEY = "$2a$10$v1DprNqLDisiqMK6FZLsYO69Mqmc/8c0SLkK3TkbMYvF32BLq3Cwm";
 const JSONBIN_URL = "https://api.jsonbin.io/v3/b";
 const ADMIN_PASS = "worldcup2026";
 const MATCHES = [
@@ -307,7 +307,7 @@ let currentPlayer = "";
 let saveTimeout = null;
 function hashPass(pass){ return btoa(unescape(encodeURIComponent("cdm2026:"+pass))); }
 async function loadData(){
-binId = "6a29bef5f5f4af5e29da75d7";
+binId = "6a2ab42eda38895dfead7fb8";
 if(binId){
 try{
 const r=await fetch(JSONBIN_URL+"/"+binId+"/latest",{headers:{"X-Master-Key":JSONBIN_KEY}});
