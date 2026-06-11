@@ -80,7 +80,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
 .rank-pts{font-size:1.2rem;font-weight:900;color:var(--green);}
 .rank-detail{font-size:.68rem;color:var(--muted);margin-top:.1rem;}
 .scoring-box{margin-top:1.5rem;background:var(--card);border:1px solid var(--border);border-radius:.85rem;padding:1rem;font-size:.78rem;color:var(--muted);line-height:1.8;}
-.error-msg{color:#f87171;font-size:#.8rem;text-align:center;margin-top:.5rem;min-height:1.2rem;}
+.error-msg{color:#f87171;font-size:.8rem;text-align:center;margin-top:.5rem;min-height:1.2rem;}
 .success-msg{color:#4ade80;font-size:.8rem;text-align:center;margin-top:.5rem;}
 .save-ind{font-size:.72rem;color:var(--muted);}
 .tab-bar{display:flex;gap:.5rem;margin-bottom:1rem;}
@@ -146,7 +146,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
 </div>
 <div id="play" class="screen">
 <div class="topbar">
-<button class="topbar-back" id="backFromPlay">􀀀 Déco.</button>
+<button class="topbar-back" id="backFromPlay">⏻ Déco.</button>
 <div class="topbar-title" id="playTitle"></div>
 <div class="save-ind" id="playSaveInd"></div>
 </div>
@@ -320,21 +320,18 @@ const d=await r.json();binId=d.metadata.id;localStorage.setItem("cdm2026_binId",
 }catch(e){}
 state={accounts:{},players:{},realScores:{}};
 }
-// Nouvelle fonction de sauvegarde ultra-sécurisée par "morceaux" (PATCH)
 async function saveMatchPrediction(player, matchId, side, value) {
   if (!binId) return;
   const ind = document.getElementById("playSaveInd");
   if (ind) ind.textContent = "💾…";
 
   try {
-    // On demande à JSONBin de modifier UNIQUEMENT la case précise du joueur et du match
-    // sans toucher au reste du fichier
     const response = await fetch(JSONBIN_URL + "/" + binId, {
-      method: "CHIRURGICAL", // JSONBin comprend automatiquement ce mode via les headers ci-dessous
+      method: "CHIRURGICAL", 
       headers: {
         "Content-Type": "application/json",
         "X-Master-Key": JSONBIN_KEY,
-        "X-Bin-Path": `players.${player}.${matchId}.${side}` // Le chemin exact dans la base
+        "X-Bin-Path": `players.${player}.${matchId}.${side}`
       },
       body: JSON.stringify(value)
     });
@@ -349,7 +346,6 @@ async function saveMatchPrediction(player, matchId, side, value) {
   }
 }
 
-// Version pour les scores de l'ADMIN
 async function saveAdminScore(matchId, side, value) {
   if (!binId) return;
   const ind = document.getElementById("adminSaveInd");
@@ -369,7 +365,6 @@ async function saveAdminScore(matchId, side, value) {
   } catch (e) { if (ind) ind.textContent = "⚠️ Erreur réseau"; }
 }
 
-// On garde l'ancienne fonction UNIQUEMENT pour les suppressions de comptes globales en admin
 async function saveData(ind){
   if(!binId)return;
   try{
@@ -445,11 +440,15 @@ if(element) {
 element.classList.toggle("active");
 }
 }
+function filterStyleValue() {
+const el = document.getElementById("matchFilter");
+return el ? el.value : "group";
+}
 function renderPlay(){
 const preds=state.players[currentPlayer]||{};
 let total=0;MATCHES.forEach(m=>{const p=pts(preds[m.id],state.realScores[m.id]);if(p)total+=p;});
 document.getElementById("playTitle").textContent=currentPlayer+" · "+total+" pts";
-const filterStyle = document.getElementById("matchFilter").value;
+const filterStyle = filterStyleValue();
 let html="";
 if (filterStyle === "group") {
 const groups={};MATCHES.forEach(m=>{if(!groups[m.g])groups[m.g]=[];groups[m.g].push(m);});
@@ -471,30 +470,26 @@ html+=generateMatchCardHtml(m, preds);
 }
 document.getElementById("matchList").innerHTML=html;
 applyTwemoji();
+
 document.querySelectorAll("#matchList .score").forEach(inp=>{
-// On remplace l'écouteur d'input dans renderPlay()
-  document.querySelectorAll("#matchList .score").forEach(inp=>{
-    inp.addEventListener("input",e=>{
-      const id=e.target.dataset.id, side=e.target.dataset.side;
-      const m=MATCHES.find(x=>x.id===id);
-      if(!m||isLocked(m.kickoff))return;
-      
-      const val = e.target.value;
-      
-      // On met à jour localement l'état pour l'affichage des points en direct
-      if(!state.players[currentPlayer]) state.players[currentPlayer]={};
-      if(!state.players[currentPlayer][id]) state.players[currentPlayer][id]={home:"",away:""};
-      state.players[currentPlayer][id][side]=val;
-      
-      let t=0; MATCHES.forEach(mm=>{const p2=pts(state.players[currentPlayer][mm.id],state.realScores[mm.id]);if(p2)t+=p2;});
-      document.getElementById("playTitle").textContent=currentPlayer+" · "+t+" pts";
-      
-      // On déclenche la sauvegarde ciblée après un mini-délai pour éviter de surcharger le serveur
-      clearTimeout(inp.timeout);
-      inp.timeout = setTimeout(() => {
-        saveMatchPrediction(currentPlayer, id, side, val);
-      }, 500);
-    });
+  inp.addEventListener("input",e=>{
+    const id=e.target.dataset.id, side=e.target.dataset.side;
+    const m=MATCHES.find(x=>x.id===id);
+    if(!m||isLocked(m.kickoff))return;
+    
+    const val = e.target.value;
+    
+    if(!state.players[currentPlayer]) state.players[currentPlayer]={};
+    if(!state.players[currentPlayer][id]) state.players[currentPlayer][id]={home:"",away:""};
+    state.players[currentPlayer][id][side]=val;
+    
+    let t=0; MATCHES.forEach(mm=>{const p2=pts(state.players[currentPlayer][mm.id],state.realScores[mm.id]);if(p2)t+=p2;});
+    document.getElementById("playTitle").textContent=currentPlayer+" · "+t+" pts";
+    
+    clearTimeout(inp.timeout);
+    inp.timeout = setTimeout(() => {
+      saveMatchPrediction(currentPlayer, id, side, val);
+    }, 500);
   });
 });
 }
@@ -535,10 +530,6 @@ ${dayBanner(m.kickoff)}
 </div>
 <span class="team team-away">${m.away}</span>
 </div>${realHtml}${othersHtml}</div>`;
-}
-function filterStyleValue() {
-const el = document.getElementById("matchFilter");
-return el ? el.value : "group";
 }
 document.getElementById("matchFilter").addEventListener("change", renderPlay);
 function switchRankTab(tab) {
@@ -641,21 +632,20 @@ html+=`<div class="match-card">
 });
 document.getElementById("adminMatchList").innerHTML=html;
 applyTwemoji();
-// On remplace l'écouteur d'input dans renderAdmin()
-  document.querySelectorAll("#adminMatchList .admin-score").forEach(inp=>{
-    inp.addEventListener("input",e=>{
-      const id=e.target.dataset.id, side=e.target.dataset.side;
-      const val = e.target.value;
-      
-      if(!state.realScores[id]) state.realScores[id]={home:"",away:""};
-      state.realScores[id][side]=val;
-      
-      clearTimeout(inp.timeout);
-      inp.timeout = setTimeout(() => {
-        saveAdminScore(id, side, val);
-      }, 500);
-    });
+document.querySelectorAll("#adminMatchList .admin-score").forEach(inp=>{
+  inp.addEventListener("input",e=>{
+    const id=e.target.dataset.id, side=e.target.dataset.side;
+    const val = e.target.value;
+    
+    if(!state.realScores[id]) state.realScores[id]={home:"",away:""};
+    state.realScores[id][side]=val;
+    
+    clearTimeout(inp.timeout);
+    inp.timeout = setTimeout(() => {
+      saveAdminScore(id, side, val);
+    }, 500);
   });
+});
 }
 function renderAdminUsers(){
 const users=Object.entries(state.accounts);
