@@ -327,7 +327,7 @@ async function saveMatchPrediction(player, matchId, side, value) {
 
   try {
     const response = await fetch(JSONBIN_URL + "/" + binId, {
-      method: "CHIRURGICAL", 
+      method: "PATCH", 
       headers: {
         "Content-Type": "application/json",
         "X-Master-Key": JSONBIN_KEY,
