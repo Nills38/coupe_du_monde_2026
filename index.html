@@ -307,7 +307,7 @@ let currentPlayer = "";
 let saveTimeout = null;
 function hashPass(pass){ return btoa(unescape(encodeURIComponent("cdm2026:"+pass))); }
 async function loadData(){
-binId = "6a29bef5f5f4af5e29da75d7";
+binId = "$2a$10$v1DprNqLDisiqMK6FZLsYO69Mqmc/8c0SLkK3TkbMYvF32BLq3Cwm";
 if(binId){
 try{
 const r=await fetch(JSONBIN_URL+"/"+binId+"/latest",{headers:{"X-Master-Key":JSONBIN_KEY}});
