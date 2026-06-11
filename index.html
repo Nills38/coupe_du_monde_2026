@@ -320,12 +320,62 @@ const d=await r.json();binId=d.metadata.id;localStorage.setItem("cdm2026_binId",
 }catch(e){}
 state={accounts:{},players:{},realScores:{}};
 }
+// Nouvelle fonction de sauvegarde ultra-sécurisée par "morceaux" (PATCH)
+async function saveMatchPrediction(player, matchId, side, value) {
+  if (!binId) return;
+  const ind = document.getElementById("playSaveInd");
+  if (ind) ind.textContent = "💾…";
+
+  try {
+    // On demande à JSONBin de modifier UNIQUEMENT la case précise du joueur et du match
+    // sans toucher au reste du fichier
+    const response = await fetch(JSONBIN_URL + "/" + binId, {
+      method: "CHIRURGICAL", // JSONBin comprend automatiquement ce mode via les headers ci-dessous
+      headers: {
+        "Content-Type": "application/json",
+        "X-Master-Key": JSONBIN_KEY,
+        "X-Bin-Path": `players.${player}.${matchId}.${side}` // Le chemin exact dans la base
+      },
+      body: JSON.stringify(value)
+    });
+
+    if (response.ok) {
+      if (ind) { ind.textContent = "✓ Sauvegardé"; setTimeout(() => { if(ind.textContent==="✓ Sauvegardé") ind.textContent = ""; }, 2000); }
+    } else {
+      if (ind) ind.textContent = "⚠️ Erreur de sauvegarde";
+    }
+  } catch (e) {
+    if (ind) ind.textContent = "⚠️ Erreur réseau";
+  }
+}
+
+// Version pour les scores de l'ADMIN
+async function saveAdminScore(matchId, side, value) {
+  if (!binId) return;
+  const ind = document.getElementById("adminSaveInd");
+  if (ind) ind.textContent = "💾…";
+
+  try {
+    const response = await fetch(JSONBIN_URL + "/" + binId, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Master-Key": JSONBIN_KEY,
+        "X-Bin-Path": `realScores.${matchId}.${side}`
+      },
+      body: JSON.stringify(value)
+    });
+    if (response.ok && ind) { ind.textContent = "✓ Sauvegardé"; setTimeout(() => ind.textContent = "", 2000); }
+  } catch (e) { if (ind) ind.textContent = "⚠️ Erreur réseau"; }
+}
+
+// On garde l'ancienne fonction UNIQUEMENT pour les suppressions de comptes globales en admin
 async function saveData(ind){
-if(!binId)return;
-try{
-await fetch(JSONBIN_URL+"/"+binId,{method:"PUT",headers:{"Content-Type":"application/json","X-Master-Key":JSONBIN_KEY},body:JSON.stringify(state)});
-if(ind){ind.textContent="✓ Sauvegardé";setTimeout(()=>ind.textContent="",2000);}
-}catch(e){if(ind)ind.textContent="⚠️ Erreur réseau";}
+  if(!binId)return;
+  try{
+    await fetch(JSONBIN_URL+"/"+binId,{method:"PUT",headers:{"Content-Type":"application/json","X-Master-Key":JSONBIN_KEY},body:JSON.stringify(state)});
+    if(ind){ind.textContent="✓ Sauvegardé";setTimeout(()=>ind.textContent="",2000);}
+  }catch(e){if(ind)ind.textContent="⚠️ Erreur réseau";}
 }
 function scheduleSave(ind){
 clearTimeout(saveTimeout);if(ind)ind.textContent="💾…";
@@ -422,17 +472,30 @@ html+=generateMatchCardHtml(m, preds);
 document.getElementById("matchList").innerHTML=html;
 applyTwemoji();
 document.querySelectorAll("#matchList .score").forEach(inp=>{
-inp.addEventListener("input",e=>{
-const id=e.target.dataset.id,side=e.target.dataset.side;
-const m=MATCHES.find(x=>x.id===id);
-if(!m||isLocked(m.kickoff))return;
-if(!state.players[currentPlayer])state.players[currentPlayer]={};
-if(!state.players[currentPlayer][id])state.players[currentPlayer][id]={home:"",away:""};
-state.players[currentPlayer][id][side]=e.target.value;
-let t=0;MATCHES.forEach(mm=>{const p2=pts(state.players[currentPlayer][mm.id],state.realScores[mm.id]);if(p2)t+=p2;});
-document.getElementById("playTitle").textContent=currentPlayer+" · "+t+" pts";
-scheduleSave(document.getElementById("playSaveInd"));
-});
+// On remplace l'écouteur d'input dans renderPlay()
+  document.querySelectorAll("#matchList .score").forEach(inp=>{
+    inp.addEventListener("input",e=>{
+      const id=e.target.dataset.id, side=e.target.dataset.side;
+      const m=MATCHES.find(x=>x.id===id);
+      if(!m||isLocked(m.kickoff))return;
+      
+      const val = e.target.value;
+      
+      // On met à jour localement l'état pour l'affichage des points en direct
+      if(!state.players[currentPlayer]) state.players[currentPlayer]={};
+      if(!state.players[currentPlayer][id]) state.players[currentPlayer][id]={home:"",away:""};
+      state.players[currentPlayer][id][side]=val;
+      
+      let t=0; MATCHES.forEach(mm=>{const p2=pts(state.players[currentPlayer][mm.id],state.realScores[mm.id]);if(p2)t+=p2;});
+      document.getElementById("playTitle").textContent=currentPlayer+" · "+t+" pts";
+      
+      // On déclenche la sauvegarde ciblée après un mini-délai pour éviter de surcharger le serveur
+      clearTimeout(inp.timeout);
+      inp.timeout = setTimeout(() => {
+        saveMatchPrediction(currentPlayer, id, side, val);
+      }, 500);
+    });
+  });
 });
 }
 function generateMatchCardHtml(m, preds) {
@@ -578,14 +641,21 @@ html+=`<div class="match-card">
 });
 document.getElementById("adminMatchList").innerHTML=html;
 applyTwemoji();
-document.querySelectorAll("#adminMatchList .admin-score").forEach(inp=>{
-inp.addEventListener("input",e=>{
-const id=e.target.dataset.id,side=e.target.dataset.side;
-if(!state.realScores[id])state.realScores[id]={home:"",away:""};
-state.realScores[id][side]=e.target.value;
-scheduleSave(document.getElementById("adminSaveInd"));
-});
-});
+// On remplace l'écouteur d'input dans renderAdmin()
+  document.querySelectorAll("#adminMatchList .admin-score").forEach(inp=>{
+    inp.addEventListener("input",e=>{
+      const id=e.target.dataset.id, side=e.target.dataset.side;
+      const val = e.target.value;
+      
+      if(!state.realScores[id]) state.realScores[id]={home:"",away:""};
+      state.realScores[id][side]=val;
+      
+      clearTimeout(inp.timeout);
+      inp.timeout = setTimeout(() => {
+        saveAdminScore(id, side, val);
+      }, 500);
+    });
+  });
 }
 function renderAdminUsers(){
 const users=Object.entries(state.accounts);
